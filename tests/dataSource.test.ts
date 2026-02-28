@@ -47,6 +47,7 @@ describe('DataSource', () => {
 	});
 	afterEach(() => {
 		dataSource.dispose();
+		spyOnSpawn.mockReset();
 	});
 
 	const mockGitSuccessOnce = (stdout?: string, stderr?: string) => {
