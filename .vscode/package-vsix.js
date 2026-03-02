@@ -23,8 +23,9 @@ pkg.description = originalDesc + ' (build: ' + gitHash + ')';
 fs.writeFileSync(PKG_PATH, JSON.stringify(pkg, null, '\t') + '\n');
 console.log('Injected build hash: ' + gitHash);
 
-// Run vsce package
-const vsce = cp.spawnSync('npx', ['vsce', 'package'], {
+// Run vsce package with hash in filename
+const outFile = `${pkg.name}-${pkg.version}-${gitHash}.vsix`;
+const vsce = cp.spawnSync('npx', ['vsce', 'package', '--out', outFile], {
 	cwd: path.join(__dirname, '..'),
 	stdio: 'inherit',
 	shell: true

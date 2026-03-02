@@ -114,3 +114,30 @@ npx jest --no-coverage --testPathPattern="dataSource" -t "stash" --bail 3
 ### Versioning
 
 Upstream version is kept as-is. Build revision is tracked via git commit hash injected into description at package time (see `.vscode/package-vsix.js`).
+
+### Release Process
+
+1. Build and package on `by-luke` branch:
+   ```bash
+   npm run compile
+   npm run package
+   ```
+
+2. Create GitHub Release (tag: `v{version}-luke.{n}`, target: `by-luke`):
+   ```bash
+   gh release create v1.31.6-luke.1 \
+     ./git-graph-by-luke-1.31.6-abc1234.vsix \
+     --repo zekaizer/vscode-git-graph \
+     --target by-luke \
+     --title "v1.31.6-luke.1" \
+     --notes "release notes here"
+   ```
+
+3. Release notes format:
+   - State the upstream base version
+   - Categorize changes into Features / Fixes / Chore sections
+   - Include build commit hash
+
+4. Tag convention: `v{upstream-version}-luke.{build-number}`
+   - e.g. `v1.31.6-luke.1`, `v1.31.6-luke.2`
+   - Reset build number when upstream version bumps
