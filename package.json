@@ -1,8 +1,8 @@
 {
-	"name": "git-graph-2",
-	"displayName": "Git Graph 2",
+	"name": "git-graph-by-luke",
+	"displayName": "Git Graph by luke",
 	"version": "1.31.6",
-	"publisher": "hansu",
+	"publisher": "zekaizer",
 	"author": {
 		"name": "Michael Hutchison",
 		"email": "mhutchie@16right.com"
@@ -18,13 +18,13 @@
 	"categories": [
 		"Other"
 	],
-	"homepage": "https://github.com/hansu/vscode-git-graph",
+	"homepage": "https://github.com/zekaizer/vscode-git-graph",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/hansu/vscode-git-graph.git"
+		"url": "https://github.com/zekaizer/vscode-git-graph.git"
 	},
 	"bugs": {
-		"url": "https://github.com/hansu/vscode-git-graph/issues"
+		"url": "https://github.com/zekaizer/vscode-git-graph/issues"
 	},
 	"qna": "https://github.com/hansu/vscode-git-graph/wiki/Support-Resources",
 	"license": "SEE LICENSE IN 'LICENSE'",
@@ -1628,7 +1628,7 @@
 		"compile-web": "tsc -p ./web && node ./.vscode/package-web.js",
 		"compile-web-debug": "tsc -p ./web && node ./.vscode/package-web.js debug",
 		"lint": "eslint --max-warnings 0 ./src ./tests ./web",
-		"package": "vsce package",
+		"package": "node ./.vscode/package-vsix.js",
 		"package-and-install": "npm run package && node ./.vscode/install-package.js",
 		"test": "jest --verbose",
 		"test-and-report-coverage": "jest --verbose --coverage"
