@@ -145,6 +145,7 @@ describe('DataSource', () => {
 	describe('getRepoInfo', () => {
 		it('Should return the repository info', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n' +
@@ -198,6 +199,7 @@ describe('DataSource', () => {
 
 		it('Should return the repository info (when showRemoteBranches is FALSE)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n'
@@ -224,6 +226,7 @@ describe('DataSource', () => {
 
 		it('Should return the repository info (using git-graph.date.type)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n'
@@ -256,6 +259,7 @@ describe('DataSource', () => {
 
 		it('Should return the repository info (using git-graph.dateType)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n'
@@ -288,6 +292,7 @@ describe('DataSource', () => {
 
 		it('Should return the repository info (using git-graph.repository.useMailmap)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n'
@@ -320,6 +325,7 @@ describe('DataSource', () => {
 
 		it('Should return the repository info (using git-graph.useMailmap)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n'
@@ -352,6 +358,7 @@ describe('DataSource', () => {
 
 		it('Should return the repository info (showStashes is FALSE)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n'
@@ -371,11 +378,12 @@ describe('DataSource', () => {
 			});
 			expect(spyOnSpawn).toBeCalledWith('/path/to/git', ['branch', '-a', '--no-color'], expect.objectContaining({ cwd: '/path/to/repo' }));
 			expect(spyOnSpawn).toBeCalledWith('/path/to/git', ['remote'], expect.objectContaining({ cwd: '/path/to/repo' }));
-			expect(spyOnSpawn).toHaveBeenCalledTimes(2);
+			expect(spyOnSpawn).toHaveBeenCalledTimes(3);
 		});
 
 		it('Should return the repository info (hidden remote and an invalid branch)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n' +
@@ -405,6 +413,7 @@ describe('DataSource', () => {
 
 		it('Should return the repository info (excluding remote heads)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n' +
@@ -434,6 +443,7 @@ describe('DataSource', () => {
 
 		it('Should return an error message thrown by git (when getting branches)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitThrowingErrorOnce();
 			mockGitSuccessOnce('origin\n');
 			mockGitSuccessOnce('\n');
@@ -454,6 +464,7 @@ describe('DataSource', () => {
 
 		it('Should return an error message thrown by git (when getting remotes)', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n'
@@ -477,12 +488,108 @@ describe('DataSource', () => {
 
 		it('Should return no stashes when when getting stashes throws an error', async () => {
 			// Setup
+			mockGitSuccessOnce();
 			mockGitSuccessOnce(
 				'* develop\n' +
 				'  master\n'
 			);
 			mockGitSuccessOnce('origin\n');
 			mockGitThrowingErrorOnce();
+			vscode.mockExtensionSettingReturnValue('repository.showRemoteHeads', true);
+
+			// Run
+			const result = await dataSource.getRepoInfo('/path/to/repo', true, true, []);
+
+			// Assert
+			expect(result).toStrictEqual({
+				branches: ['develop', 'master'],
+				head: 'develop',
+				remotes: ['origin'],
+				stashes: [],
+				error: null
+			});
+		});
+	});
+
+	describe('ensureCommitGraph', () => {
+		it('Should spawn commit-graph write when getRepoInfo is called', async () => {
+			// Setup
+			mockGitSuccessOnce();
+			mockGitSuccessOnce(
+				'* develop\n' +
+				'  master\n'
+			);
+			mockGitSuccessOnce('origin\n');
+			mockGitSuccessOnce('\n');
+			vscode.mockExtensionSettingReturnValue('repository.showRemoteHeads', true);
+
+			// Run
+			await dataSource.getRepoInfo('/path/to/repo', true, true, []);
+
+			// Assert
+			expect(spyOnSpawn).toBeCalledWith('/path/to/git', ['commit-graph', 'write', '--reachable'], expect.objectContaining({ cwd: '/path/to/repo' }));
+		});
+
+		it('Should not spawn commit-graph write when git version is below 2.18', async () => {
+			// Setup
+			dataSource.dispose();
+			dataSource = new DataSource({ path: '/path/to/git', version: '2.17.0' }, onDidChangeConfiguration.subscribe, onDidChangeGitExecutable.subscribe, logger);
+			mockGitSuccessOnce(
+				'* develop\n' +
+				'  master\n'
+			);
+			mockGitSuccessOnce('origin\n');
+			mockGitSuccessOnce('\n');
+			vscode.mockExtensionSettingReturnValue('repository.showRemoteHeads', true);
+
+			// Run
+			await dataSource.getRepoInfo('/path/to/repo', true, true, []);
+
+			// Assert
+			expect(spyOnSpawn).not.toBeCalledWith('/path/to/git', ['commit-graph', 'write', '--reachable'], expect.anything());
+		});
+
+		it('Should not spawn duplicate commit-graph write for the same repo', async () => {
+			// Setup - first call
+			mockGitSuccessOnce();
+			mockGitSuccessOnce(
+				'* develop\n' +
+				'  master\n'
+			);
+			mockGitSuccessOnce('origin\n');
+			mockGitSuccessOnce('\n');
+			vscode.mockExtensionSettingReturnValue('repository.showRemoteHeads', true);
+
+			// Run first call
+			await dataSource.getRepoInfo('/path/to/repo', true, true, []);
+
+			// Setup - second call (no commit-graph mock needed)
+			mockGitSuccessOnce(
+				'* develop\n' +
+				'  master\n'
+			);
+			mockGitSuccessOnce('origin\n');
+			mockGitSuccessOnce('\n');
+
+			// Run second call
+			await dataSource.getRepoInfo('/path/to/repo', true, true, []);
+
+			// Assert - commit-graph should only have been called once
+			const commitGraphCalls = spyOnSpawn.mock.calls.filter(
+				(call: string[][]) => call[1][0] === 'commit-graph'
+			);
+			expect(commitGraphCalls).toHaveLength(1);
+		});
+
+		it('Should not affect getRepoInfo when commit-graph write fails', async () => {
+			// Setup
+			mockGitThrowingErrorOnce('commit-graph error');
+			mockGitSuccessOnce(
+				'* develop\n' +
+				'  master\n'
+			);
+			mockGitSuccessOnce('origin\n');
+			mockGitSuccessOnce('\n');
 			vscode.mockExtensionSettingReturnValue('repository.showRemoteHeads', true);
 
 			// Run

@@ -45,6 +45,7 @@ export class DataSource extends Disposable {
 	private gitFormatCommitDetails!: string;
 	private gitFormatLog!: string;
 	private gitFormatStash!: string;
+	private readonly commitGraphEnsured: Set<string> = new Set();
 
 	/**
 	 * Creates the Git Graph Data Source.
@@ -92,7 +93,28 @@ export class DataSource extends Disposable {
 	private setGitExecutable(gitExecutable: GitExecutable | null) {
 		this.gitExecutable = gitExecutable;
 		this.gitExecutableSupportsGpgInfo = gitExecutable !== null && doesVersionMeetRequirement(gitExecutable.version, GitVersionRequirement.GpgInfo);
+		this.commitGraphEnsured.clear();
 		this.generateGitCommandFormats();
+	}
+
+	/**
+	 * Ensure the commit-graph exists for a repository.
+	 * Runs as fire-and-forget; errors are silently logged.
+	 * @param repo The path of the repository.
+	 */
+	private ensureCommitGraph(repo: string): void {
+		if (this.gitExecutable === null ||
+			!doesVersionMeetRequirement(this.gitExecutable.version, GitVersionRequirement.CommitGraph)) {
+			return;
+		}
+		if (this.commitGraphEnsured.has(repo)) {
+			return;
+		}
+		this.commitGraphEnsured.add(repo);
+		this.spawnGit(['commit-graph', 'write', '--reachable'], repo, () => {}).then(
+			() => this.logger.log('Commit-graph updated for ' + repo),
+			(e) => this.logger.logError('Failed to write commit-graph: ' + e)
+		);
 	}
 
 	/**
@@ -135,6 +157,7 @@ export class DataSource extends Disposable {
 	 * @returns The repositories information.
 	 */
 	public getRepoInfo(repo: string, showRemoteBranches: boolean, showStashes: boolean, hideRemotes: ReadonlyArray<string>): Promise<GitRepoInfo> {
+		this.ensureCommitGraph(repo);
 		return Promise.all([
 			this.getBranches(repo, showRemoteBranches, hideRemotes),
 			this.getRemotes(repo),
