@@ -16,7 +16,7 @@ import { ExternalRepoConfig, RepoChangeEvent, RepoManager } from '../src/repoMan
 import * as utils from '../src/utils';
 import * as bufferedQueue from '../src/utils/bufferedQueue';
 import { EventEmitter } from '../src/utils/event';
-import { BooleanOverride, FileViewType, GitRepoSet, GitRepoState, PullRequestProvider, RepoCommitOrdering } from '../src/types';
+import { BooleanOverride, FileViewType, GitRepoSet, GitRepoState, PullRequestProvider, RepoCommitOrdering, ShowRemoteBranchesOverride } from '../src/types';
 
 import { waitForExpect } from './helpers/expectations';
 import { mockRepoState } from './helpers/utils';
@@ -1238,7 +1238,7 @@ describe('RepoManager', () => {
 				onRepoLoadShowSpecificBranches: null,
 				pullRequestConfig: null,
 				showRemoteBranches: true,
-				showRemoteBranchesV2: BooleanOverride.Default,
+				showRemoteBranchesV2: ShowRemoteBranchesOverride.Default,
 				showStashes: BooleanOverride.Default,
 				showTags: BooleanOverride.Default,
 				workspaceFolderIndex: 0
@@ -1907,7 +1907,7 @@ describe('RepoManager', () => {
 						onRepoLoadShowSpecificBranches: null,
 						pullRequestConfig: null,
 						showRemoteBranches: true,
-						showRemoteBranchesV2: BooleanOverride.Default,
+						showRemoteBranchesV2: ShowRemoteBranchesOverride.Default,
 						showStashes: BooleanOverride.Default,
 						showTags: BooleanOverride.Default,
 						workspaceFolderIndex: 0
@@ -1992,8 +1992,8 @@ describe('RepoManager', () => {
 			});
 
 			describe('showRemoteBranches', () => {
-				it('Should import BooleanOverride.Enabled correctly', testApplyField('showRemoteBranchesV2', BooleanOverride.Enabled, 'showRemoteBranches', true));
-				it('Should import BooleanOverride.Disabled correctly', testApplyField('showRemoteBranchesV2', BooleanOverride.Disabled, 'showRemoteBranches', false));
+				it('Should import ShowRemoteBranchesOverride.All correctly', testApplyField('showRemoteBranchesV2', ShowRemoteBranchesOverride.All, 'showRemoteBranches', true));
+				it('Should import ShowRemoteBranchesOverride.None correctly', testApplyField('showRemoteBranchesV2', ShowRemoteBranchesOverride.None, 'showRemoteBranches', false));
 			});
 
 			describe('showStashes', () => {
@@ -2260,7 +2260,7 @@ describe('RepoManager', () => {
 					onRepoLoadShowSpecificBranches: null,
 					pullRequestConfig: null,
 					showRemoteBranches: true,
-					showRemoteBranchesV2: BooleanOverride.Default,
+					showRemoteBranchesV2: ShowRemoteBranchesOverride.Default,
 					showStashes: BooleanOverride.Default,
 					showTags: BooleanOverride.Default,
 					workspaceFolderIndex: 0
@@ -2338,7 +2338,7 @@ describe('RepoManager', () => {
 					onRepoLoadShowSpecificBranches: null,
 					pullRequestConfig: null,
 					showRemoteBranches: true,
-					showRemoteBranchesV2: BooleanOverride.Default,
+					showRemoteBranchesV2: ShowRemoteBranchesOverride.Default,
 					showStashes: BooleanOverride.Default,
 					showTags: BooleanOverride.Default,
 					workspaceFolderIndex: 0
@@ -2478,8 +2478,8 @@ describe('RepoManager', () => {
 		});
 
 		describe('showRemoteBranches', () => {
-			it('Should export BooleanOverride.Enabled correctly', testExportField('showRemoteBranchesV2', BooleanOverride.Enabled, 'showRemoteBranches', true));
-			it('Should export BooleanOverride.Disabled correctly', testExportField('showRemoteBranchesV2', BooleanOverride.Disabled, 'showRemoteBranches', false));
+			it('Should export ShowRemoteBranchesOverride.All correctly', testExportField('showRemoteBranchesV2', ShowRemoteBranchesOverride.All, 'showRemoteBranches', true));
+			it('Should export ShowRemoteBranchesOverride.None correctly', testExportField('showRemoteBranchesV2', ShowRemoteBranchesOverride.None, 'showRemoteBranches', false));
 		});
 
 		describe('showStashes', () => {

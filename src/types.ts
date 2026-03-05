@@ -219,7 +219,7 @@ export interface GitRepoState {
 	onRepoLoadShowSpecificBranches: string[] | null;
 	pullRequestConfig: PullRequestConfig | null;
 	showRemoteBranches: boolean;
-	showRemoteBranchesV2: BooleanOverride;
+	showRemoteBranchesV2: ShowRemoteBranchesOverride;
 	simplifyByDecoration: BooleanOverride;
 	showStashes: BooleanOverride;
 	showTags: BooleanOverride;
@@ -345,6 +345,19 @@ export const enum BooleanOverride {
 	Default,
 	Enabled,
 	Disabled
+}
+
+export const enum ShowRemoteBranchesOverride {
+	Default, // 0 = BooleanOverride.Default
+	All, // 1 = BooleanOverride.Enabled
+	None, // 2 = BooleanOverride.Disabled
+	UpstreamOnly // 3
+}
+
+export const enum ShowRemoteBranchesMode {
+	None,
+	All,
+	UpstreamOnly
 }
 
 export const enum CommitDetailsViewLocation {
@@ -951,7 +964,7 @@ export interface RequestLoadCommits extends RepoRequest {
 	readonly authors: ReadonlyArray<string> | null; // null => Show All
 	readonly maxCommits: number;
 	readonly showTags: boolean;
-	readonly showRemoteBranches: boolean;
+	readonly showRemoteBranches: ShowRemoteBranchesMode;
 	readonly simplifyByDecoration: boolean;
 	readonly includeCommitsMentionedByReflogs: boolean;
 	readonly onlyFollowFirstParent: boolean;
@@ -985,7 +998,7 @@ export interface ResponseLoadConfig extends ResponseWithErrorInfo {
 export interface RequestLoadRepoInfo extends RepoRequest {
 	readonly command: 'loadRepoInfo';
 	readonly refreshId: number;
-	readonly showRemoteBranches: boolean;
+	readonly showRemoteBranches: ShowRemoteBranchesMode;
 	readonly simplifyByDecoration: boolean;
 	readonly showStashes: boolean;
 	readonly hideRemotes: ReadonlyArray<string>;

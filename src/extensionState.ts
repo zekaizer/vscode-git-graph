@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { Avatar, AvatarCache } from './avatarManager';
 import { getConfig } from './config';
-import { BooleanOverride, CodeReview, ErrorInfo, FileViewType, GitGraphViewGlobalState, GitGraphViewWorkspaceState, GitRepoSet, GitRepoState, RepoCommitOrdering } from './types';
+import { BooleanOverride, CodeReview, ErrorInfo, FileViewType, GitGraphViewGlobalState, GitGraphViewWorkspaceState, GitRepoSet, GitRepoState, RepoCommitOrdering, ShowRemoteBranchesOverride } from './types';
 import { GitExecutable, getPathFromStr } from './utils';
 import { Disposable } from './utils/disposable';
 import { Event } from './utils/event';
@@ -33,7 +33,7 @@ export const DEFAULT_REPO_STATE: GitRepoState = {
 	onRepoLoadShowSpecificBranches: null,
 	pullRequestConfig: null,
 	showRemoteBranches: true,
-	showRemoteBranchesV2: BooleanOverride.Default,
+	showRemoteBranchesV2: ShowRemoteBranchesOverride.Default,
 	simplifyByDecoration: BooleanOverride.Default,
 	showStashes: BooleanOverride.Default,
 	showTags: BooleanOverride.Default,
@@ -121,7 +121,7 @@ export class ExtensionState extends Disposable {
 					showRemoteBranchesDefaultValue = getConfig().showRemoteBranches;
 				}
 				if (repoSet[repo].showRemoteBranches !== showRemoteBranchesDefaultValue) {
-					outputSet[repo].showRemoteBranchesV2 = repoSet[repo].showRemoteBranches ? BooleanOverride.Enabled : BooleanOverride.Disabled;
+					outputSet[repo].showRemoteBranchesV2 = repoSet[repo].showRemoteBranches ? ShowRemoteBranchesOverride.All : ShowRemoteBranchesOverride.None;
 				}
 			}
 		});

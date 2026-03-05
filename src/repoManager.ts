@@ -5,7 +5,7 @@ import { getConfig } from './config';
 import { DataSource } from './dataSource';
 import { DEFAULT_REPO_STATE, ExtensionState } from './extensionState';
 import { Logger } from './logger';
-import { BooleanOverride, ErrorInfo, FileViewType, GitRepoSet, GitRepoState, PullRequestConfig, PullRequestConfigBase, PullRequestProvider, RepoCommitOrdering } from './types';
+import { BooleanOverride, ErrorInfo, FileViewType, GitRepoSet, GitRepoState, PullRequestConfig, PullRequestConfigBase, PullRequestProvider, RepoCommitOrdering, ShowRemoteBranchesOverride } from './types';
 import { evalPromises, getPathFromStr, getPathFromUri, getRepoName, pathWithTrailingSlash, realpath, showErrorMessage, showInformationMessage } from './utils';
 import { BufferedQueue } from './utils/bufferedQueue';
 import { Disposable, toDisposable } from './utils/disposable';
@@ -904,8 +904,10 @@ function generateExternalConfigFile(state: GitRepoState): Readonly<ExternalRepoC
 		}
 		file.pullRequestConfig = Object.assign({}, state.pullRequestConfig, { provider: provider });
 	}
-	if (state.showRemoteBranchesV2 !== BooleanOverride.Default) {
-		file.showRemoteBranches = state.showRemoteBranchesV2 === BooleanOverride.Enabled;
+	if (state.showRemoteBranchesV2 !== ShowRemoteBranchesOverride.Default) {
+		// Note: UpstreamOnly is exported as true (All) since the external config format only supports boolean.
+		// On re-import, UpstreamOnly will become All. This is an acceptable lossy conversion.
+		file.showRemoteBranches = state.showRemoteBranchesV2 !== ShowRemoteBranchesOverride.None;
 	}
 	if (state.showStashes !== BooleanOverride.Default) {
 		file.showStashes = state.showStashes === BooleanOverride.Enabled;
@@ -1062,7 +1064,7 @@ function applyExternalConfigFile(file: Readonly<ExternalRepoConfig.File>, state:
 		};
 	}
 	if (typeof file.showRemoteBranches !== 'undefined') {
-		state.showRemoteBranchesV2 = file.showRemoteBranches ? BooleanOverride.Enabled : BooleanOverride.Disabled;
+		state.showRemoteBranchesV2 = file.showRemoteBranches ? ShowRemoteBranchesOverride.All : ShowRemoteBranchesOverride.None;
 	}
 	if (typeof file.showStashes !== 'undefined') {
 		state.showStashes = file.showStashes ? BooleanOverride.Enabled : BooleanOverride.Disabled;

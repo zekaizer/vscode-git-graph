@@ -14,7 +14,7 @@ import { ExtensionState } from '../src/extensionState';
 import { GitGraphView, standardiseCspSource } from '../src/gitGraphView';
 import { Logger } from '../src/logger';
 import { RepoChangeEvent, RepoManager } from '../src/repoManager';
-import { CodeReview, CommitOrdering, GitCommitStash, GitConfigLocation, GitFileStatus, GitGraphViewGlobalState, GitGraphViewWorkspaceState, GitPushBranchMode, GitResetMode, MergeActionOn, PullRequestConfig, PullRequestProvider, RebaseActionOn, RequestMessage, ResponseMessage, TagType } from '../src/types';
+import { CodeReview, CommitOrdering, GitCommitStash, GitConfigLocation, GitFileStatus, GitGraphViewGlobalState, GitGraphViewWorkspaceState, GitPushBranchMode, GitResetMode, MergeActionOn, PullRequestConfig, PullRequestProvider, RebaseActionOn, RequestMessage, ResponseMessage, ShowRemoteBranchesMode, TagType } from '../src/types';
 import * as utils from '../src/utils';
 import { EventEmitter } from '../src/utils/event';
 
@@ -2159,7 +2159,7 @@ describe('GitGraphView', () => {
 					branches: null,
 					maxCommits: 300,
 					showTags: true,
-					showRemoteBranches: false,
+					showRemoteBranches: ShowRemoteBranchesMode.None,
 					includeCommitsMentionedByReflogs: false,
 					onlyFollowFirstParent: false,
 					commitOrdering: CommitOrdering.Date,
@@ -2200,7 +2200,7 @@ describe('GitGraphView', () => {
 					branches: null,
 					maxCommits: 300,
 					showTags: false,
-					showRemoteBranches: true,
+					showRemoteBranches: ShowRemoteBranchesMode.All,
 					includeCommitsMentionedByReflogs: false,
 					onlyFollowFirstParent: false,
 					commitOrdering: CommitOrdering.Date,
@@ -2241,7 +2241,7 @@ describe('GitGraphView', () => {
 					branches: null,
 					maxCommits: 300,
 					showTags: false,
-					showRemoteBranches: false,
+					showRemoteBranches: ShowRemoteBranchesMode.None,
 					includeCommitsMentionedByReflogs: true,
 					onlyFollowFirstParent: false,
 					commitOrdering: CommitOrdering.Date,
@@ -2282,7 +2282,7 @@ describe('GitGraphView', () => {
 					branches: null,
 					maxCommits: 300,
 					showTags: false,
-					showRemoteBranches: false,
+					showRemoteBranches: ShowRemoteBranchesMode.None,
 					includeCommitsMentionedByReflogs: false,
 					onlyFollowFirstParent: true,
 					commitOrdering: CommitOrdering.Date,
@@ -2334,7 +2334,7 @@ describe('GitGraphView', () => {
 					command: 'loadRepoInfo',
 					repo: '/path/to/repo',
 					refreshId: 0,
-					showRemoteBranches: true,
+					showRemoteBranches: ShowRemoteBranchesMode.All,
 					showStashes: false,
 					hideRemotes: ['upstream']
 				});
@@ -2383,7 +2383,7 @@ describe('GitGraphView', () => {
 					command: 'loadRepoInfo',
 					repo: '/path/to/repo',
 					refreshId: 1,
-					showRemoteBranches: true,
+					showRemoteBranches: ShowRemoteBranchesMode.All,
 					showStashes: false,
 					hideRemotes: ['upstream']
 				});
@@ -2433,7 +2433,7 @@ describe('GitGraphView', () => {
 					command: 'loadRepoInfo',
 					repo: '/path/to/repo',
 					refreshId: 2,
-					showRemoteBranches: true,
+					showRemoteBranches: ShowRemoteBranchesMode.All,
 					showStashes: false,
 					hideRemotes: ['upstream']
 				});
@@ -2483,7 +2483,7 @@ describe('GitGraphView', () => {
 					command: 'loadRepoInfo',
 					repo: '/path/to/repo',
 					refreshId: 3,
-					showRemoteBranches: true,
+					showRemoteBranches: ShowRemoteBranchesMode.All,
 					showStashes: false,
 					hideRemotes: ['upstream']
 				});
