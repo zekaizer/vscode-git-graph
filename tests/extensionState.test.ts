@@ -5,7 +5,7 @@ jest.mock('fs');
 
 import * as fs from 'fs';
 import { ExtensionState } from '../src/extensionState';
-import { BooleanOverride, FileViewType, GitGraphViewGlobalState, GitGraphViewWorkspaceState, GitRepoState, RepoCommitOrdering } from '../src/types';
+import { BooleanOverride, FileViewType, GitGraphViewGlobalState, GitGraphViewWorkspaceState, GitRepoState, RepoCommitOrdering, ShowRemoteBranchesOverride } from '../src/types';
 import { GitExecutable } from '../src/utils';
 import { EventEmitter } from '../src/utils/event';
 
@@ -72,7 +72,7 @@ describe('ExtensionState', () => {
 				onRepoLoadShowSpecificBranches: ['master'],
 				pullRequestConfig: null,
 				showRemoteBranches: true,
-				showRemoteBranchesV2: BooleanOverride.Enabled,
+				showRemoteBranchesV2: ShowRemoteBranchesOverride.All,
 				showStashes: BooleanOverride.Enabled,
 				showTags: BooleanOverride.Enabled,
 				workspaceFolderIndex: 0
@@ -120,7 +120,7 @@ describe('ExtensionState', () => {
 					onRepoLoadShowSpecificBranches: null,
 					pullRequestConfig: null,
 					showRemoteBranches: true,
-					showRemoteBranchesV2: BooleanOverride.Default,
+					showRemoteBranchesV2: ShowRemoteBranchesOverride.Default,
 					showStashes: BooleanOverride.Default,
 					showTags: BooleanOverride.Default,
 					workspaceFolderIndex: null
@@ -158,7 +158,7 @@ describe('ExtensionState', () => {
 					onRepoLoadShowSpecificBranches: null,
 					pullRequestConfig: null,
 					showRemoteBranches: true,
-					showRemoteBranchesV2: BooleanOverride.Default,
+					showRemoteBranchesV2: ShowRemoteBranchesOverride.Default,
 					showStashes: BooleanOverride.Default,
 					showTags: BooleanOverride.Default,
 					workspaceFolderIndex: null
@@ -196,7 +196,7 @@ describe('ExtensionState', () => {
 					onRepoLoadShowSpecificBranches: null,
 					pullRequestConfig: null,
 					showRemoteBranches: false,
-					showRemoteBranchesV2: BooleanOverride.Disabled,
+					showRemoteBranchesV2: ShowRemoteBranchesOverride.None,
 					showStashes: BooleanOverride.Default,
 					showTags: BooleanOverride.Default,
 					workspaceFolderIndex: null
@@ -234,7 +234,7 @@ describe('ExtensionState', () => {
 					onRepoLoadShowSpecificBranches: null,
 					pullRequestConfig: null,
 					showRemoteBranches: false,
-					showRemoteBranchesV2: BooleanOverride.Default,
+					showRemoteBranchesV2: ShowRemoteBranchesOverride.Default,
 					showStashes: BooleanOverride.Default,
 					showTags: BooleanOverride.Default,
 					workspaceFolderIndex: null
@@ -272,7 +272,7 @@ describe('ExtensionState', () => {
 					onRepoLoadShowSpecificBranches: null,
 					pullRequestConfig: null,
 					showRemoteBranches: true,
-					showRemoteBranchesV2: BooleanOverride.Enabled,
+					showRemoteBranchesV2: ShowRemoteBranchesOverride.All,
 					showStashes: BooleanOverride.Default,
 					showTags: BooleanOverride.Default,
 					workspaceFolderIndex: null
@@ -313,7 +313,7 @@ describe('ExtensionState', () => {
 					onRepoLoadShowSpecificBranches: null,
 					pullRequestConfig: null,
 					showRemoteBranches: true,
-					showRemoteBranchesV2: BooleanOverride.Default,
+					showRemoteBranchesV2: ShowRemoteBranchesOverride.Default,
 					showStashes: BooleanOverride.Default,
 					showTags: BooleanOverride.Default,
 					workspaceFolderIndex: null
@@ -334,7 +334,7 @@ describe('ExtensionState', () => {
 					onRepoLoadShowSpecificBranches: null,
 					pullRequestConfig: null,
 					showRemoteBranches: false,
-					showRemoteBranchesV2: BooleanOverride.Disabled,
+					showRemoteBranchesV2: ShowRemoteBranchesOverride.None,
 					showStashes: BooleanOverride.Default,
 					showTags: BooleanOverride.Default,
 					workspaceFolderIndex: null

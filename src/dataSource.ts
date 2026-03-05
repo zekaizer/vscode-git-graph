@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import { AskpassEnvironment, AskpassManager } from './askpass/askpassManager';
 import { getConfig } from './config';
 import { Logger } from './logger';
-import { ActionedUser, CommitOrdering, DateType, DeepWriteable, ErrorInfo, ErrorInfoExtensionPrefix, GitCommit, GitCommitDetails, GitCommitStash, GitConfigLocation, GitFileChange, GitFileStatus, GitPushBranchMode, GitRepoConfig, GitRepoConfigBranches, GitResetMode, GitSignature, GitSignatureStatus, GitStash, GitTagDetails, MergeActionOn, RebaseActionOn, SquashMessageFormat, TagType, Writeable } from './types';
+import { ActionedUser, CommitOrdering, DateType, DeepWriteable, ErrorInfo, ErrorInfoExtensionPrefix, GitCommit, GitCommitDetails, GitCommitStash, GitConfigLocation, GitFileChange, GitFileStatus, GitPushBranchMode, GitRepoConfig, GitRepoConfigBranches, GitResetMode, GitSignature, GitSignatureStatus, GitStash, GitTagDetails, MergeActionOn, RebaseActionOn, ShowRemoteBranchesMode, SquashMessageFormat, TagType, Writeable } from './types';
 import { GitExecutable, GitVersionRequirement, UNABLE_TO_FIND_GIT_MSG, UNCOMMITTED, abbrevCommit, constructIncompatibleGitVersionMessage, doesVersionMeetRequirement, getPathFromStr, getPathFromUri, openGitTerminal, pathWithTrailingSlash, realpath, resolveSpawnOutput, showErrorMessage } from './utils';
 import { Disposable } from './utils/disposable';
 import { Event } from './utils/event';
@@ -156,10 +156,12 @@ export class DataSource extends Disposable {
 	 * @param hideRemotes An array of hidden remotes.
 	 * @returns The repositories information.
 	 */
-	public getRepoInfo(repo: string, showRemoteBranches: boolean, showStashes: boolean, hideRemotes: ReadonlyArray<string>): Promise<GitRepoInfo> {
+	public async getRepoInfo(repo: string, showRemoteBranches: ShowRemoteBranchesMode, showStashes: boolean, hideRemotes: ReadonlyArray<string>): Promise<GitRepoInfo> {
 		this.ensureCommitGraph(repo);
+		const upstreamRefs = showRemoteBranches === ShowRemoteBranchesMode.UpstreamOnly
+			? await this.getUpstreamRefs(repo) : undefined;
 		return Promise.all([
-			this.getBranches(repo, showRemoteBranches, hideRemotes),
+			this.getBranches(repo, showRemoteBranches, hideRemotes, upstreamRefs),
 			this.getRemotes(repo),
 			showStashes ? this.getStashes(repo) : Promise.resolve([])
 		]).then((results) => {
@@ -184,10 +186,14 @@ export class DataSource extends Disposable {
 	 * @param stashes An array of all stashes in the repository.
 	 * @returns The commits in the repository.
 	 */
-	public getCommits(repo: string, branches: ReadonlyArray<string> | null, authors: ReadonlyArray<string> | null, maxCommits: number, showTags: boolean, showRemoteBranches: boolean, includeCommitsMentionedByReflogs: boolean, onlyFollowFirstParent: boolean, commitOrdering: CommitOrdering, remotes: ReadonlyArray<string>, hideRemotes: ReadonlyArray<string>, stashes: ReadonlyArray<GitStash>, simplifyByDecoration: boolean, pathFilter: string | null): Promise<GitCommitData> {
+	public async getCommits(repo: string, branches: ReadonlyArray<string> | null, authors: ReadonlyArray<string> | null, maxCommits: number, showTags: boolean, showRemoteBranches: ShowRemoteBranchesMode, includeCommitsMentionedByReflogs: boolean, onlyFollowFirstParent: boolean, commitOrdering: CommitOrdering, remotes: ReadonlyArray<string>, hideRemotes: ReadonlyArray<string>, stashes: ReadonlyArray<GitStash>, simplifyByDecoration: boolean, pathFilter: string | null): Promise<GitCommitData> {
 		const config = getConfig();
 		const pathFilterActive = pathFilter !== null && pathFilter !== '';
 		const showTagsConfig = showTags && config.showCommitsOnlyReferencedByTags;
+
+		// Resolve upstream refs first when in UpstreamOnly mode
+		const upstreamRefs = showRemoteBranches === ShowRemoteBranchesMode.UpstreamOnly
+			? await this.getUpstreamRefs(repo) : undefined;
 
 		// Build commits query first (spawn #1) to maintain mock-compatible spawn order
 		let commitsPromise: Promise<{ commits: (GitCommitRecord & { isPathFilterMatch?: boolean; isSyntheticParent?: boolean })[], moreCommitsAvailable: boolean }>;
@@ -196,8 +202,8 @@ export class DataSource extends Disposable {
 			// Spawn matching hashes (classification) and simplified topology in parallel.
 			// getLog uses --full-history --simplify-merges when pathFilter is set,
 			// so git handles topology filtering and parent rewriting natively.
-			const matchHashesPromise = this.getMatchingHashes(repo, branches, authors, maxCommits + 1, showTagsConfig, showRemoteBranches, includeCommitsMentionedByReflogs, onlyFollowFirstParent, commitOrdering, remotes, hideRemotes, stashes, simplifyByDecoration, pathFilter!);
-			const logPromise = this.getLog(repo, branches, authors, maxCommits + 1, showTagsConfig, showRemoteBranches, includeCommitsMentionedByReflogs, onlyFollowFirstParent, commitOrdering, remotes, hideRemotes, stashes, simplifyByDecoration, pathFilter!);
+			const matchHashesPromise = this.getMatchingHashes(repo, branches, authors, maxCommits + 1, showTagsConfig, showRemoteBranches, includeCommitsMentionedByReflogs, onlyFollowFirstParent, commitOrdering, remotes, hideRemotes, stashes, simplifyByDecoration, pathFilter!, upstreamRefs);
+			const logPromise = this.getLog(repo, branches, authors, maxCommits + 1, showTagsConfig, showRemoteBranches, includeCommitsMentionedByReflogs, onlyFollowFirstParent, commitOrdering, remotes, hideRemotes, stashes, simplifyByDecoration, pathFilter!, upstreamRefs);
 			commitsPromise = Promise.all([matchHashesPromise, logPromise]).then(([{ hashes }, logCommits]) => {
 				const moreAvailable = logCommits.length === maxCommits + 1;
 				if (moreAvailable) logCommits.pop();
@@ -211,14 +217,14 @@ export class DataSource extends Disposable {
 				};
 			});
 		} else {
-			commitsPromise = this.getLog(repo, branches, authors, maxCommits + 1, showTagsConfig, showRemoteBranches, includeCommitsMentionedByReflogs, onlyFollowFirstParent, commitOrdering, remotes, hideRemotes, stashes, simplifyByDecoration, null).then((commits) => ({
+			commitsPromise = this.getLog(repo, branches, authors, maxCommits + 1, showTagsConfig, showRemoteBranches, includeCommitsMentionedByReflogs, onlyFollowFirstParent, commitOrdering, remotes, hideRemotes, stashes, simplifyByDecoration, null, upstreamRefs).then((commits) => ({
 				commits: commits,
 				moreCommitsAvailable: commits.length === maxCommits + 1
 			}));
 		}
 
 		// Refs query (spawn #2) after commits to preserve spawn order
-		const refsPromise = this.getRefs(repo, showRemoteBranches, config.showRemoteHeads, hideRemotes).then((refData: GitRefData) => refData, (errorMessage: string) => errorMessage);
+		const refsPromise = this.getRefs(repo, showRemoteBranches, config.showRemoteHeads, hideRemotes, upstreamRefs).then((refData: GitRefData) => refData, (errorMessage: string) => errorMessage);
 
 		return Promise.all([commitsPromise, refsPromise]).then(async (results) => {
 			let { commits, moreCommitsAvailable } = results[0];
@@ -334,6 +340,53 @@ export class DataSource extends Disposable {
 					let name = refData.remotes[i].name;
 					let remote = remotes.find(remote => name.startsWith(remote + '/'));
 					commitNodes[commitLookup[refData.remotes[i].hash]].remotes.push({ name: name, remote: remote ? remote : null });
+				}
+			}
+
+			/* Annotate orphaned refs to nearest ancestor (path filter only) */
+			if (pathFilterActive) {
+				const orphanedByHash = new Map<string, { heads: string[], tags: { name: string, annotated: boolean }[], remotes: { name: string, remote: string | null }[] }>();
+
+				const addOrphaned = (hash: string) => {
+					if (!orphanedByHash.has(hash)) {
+						orphanedByHash.set(hash, { heads: [], tags: [], remotes: [] });
+					}
+					return orphanedByHash.get(hash)!;
+				};
+
+				for (i = 0; i < refData.heads.length; i++) {
+					if (typeof commitLookup[refData.heads[i].hash] !== 'number') {
+						addOrphaned(refData.heads[i].hash).heads.push(refData.heads[i].name);
+					}
+				}
+				if (showTags) {
+					for (i = 0; i < refData.tags.length; i++) {
+						if (typeof commitLookup[refData.tags[i].hash] !== 'number') {
+							addOrphaned(refData.tags[i].hash).tags.push({ name: refData.tags[i].name, annotated: refData.tags[i].annotated });
+						}
+					}
+				}
+				for (i = 0; i < refData.remotes.length; i++) {
+					if (typeof commitLookup[refData.remotes[i].hash] !== 'number') {
+						let name = refData.remotes[i].name;
+						let remote = remotes.find(remote => name.startsWith(remote + '/'));
+						addOrphaned(refData.remotes[i].hash).remotes.push({ name: name, remote: remote ? remote : null });
+					}
+				}
+
+				const orphanedEntries = Array.from(orphanedByHash.entries());
+				const ancestors = await Promise.all(
+					orphanedEntries.map(([hash]) => this.findNearestAncestorInSet(repo, hash, commitLookup))
+				);
+				for (let j = 0; j < orphanedEntries.length; j++) {
+					const ancestor = ancestors[j];
+					if (ancestor !== null) {
+						const node = commitNodes[commitLookup[ancestor]];
+						const refs = orphanedEntries[j][1];
+						node.heads.push(...refs.heads);
+						node.tags.push(...refs.tags);
+						node.remotes.push(...refs.remotes);
+					}
 				}
 			}
 
@@ -1604,9 +1657,9 @@ export class DataSource extends Disposable {
 	 * @param hideRemotes An array of hidden remotes.
 	 * @returns The branch data.
 	 */
-	private getBranches(repo: string, showRemoteBranches: boolean, hideRemotes: ReadonlyArray<string>) {
+	private getBranches(repo: string, showRemoteBranches: ShowRemoteBranchesMode, hideRemotes: ReadonlyArray<string>, upstreamRefs?: Set<string>) {
 		let args = ['branch'];
-		if (showRemoteBranches) args.push('-a');
+		if (showRemoteBranches !== ShowRemoteBranchesMode.None) args.push('-a');
 		args.push('--no-color');
 
 		const hideRemotePatterns = hideRemotes.map((remote) => 'remotes/' + remote + '/');
@@ -1621,6 +1674,13 @@ export class DataSource extends Disposable {
 					continue;
 				}
 
+				// In UpstreamOnly mode, filter remote branches to only upstream refs
+				if (showRemoteBranches === ShowRemoteBranchesMode.UpstreamOnly && name.startsWith('remotes/')) {
+					if (upstreamRefs === undefined || !upstreamRefs.has(name.substring(8))) {
+						continue;
+					}
+				}
+
 				if (lines[i][0] === '*') {
 					branchData.head = name;
 					branchData.branches.unshift(name);
@@ -1629,6 +1689,24 @@ export class DataSource extends Disposable {
 				}
 			}
 			return branchData;
+		});
+	}
+
+	/**
+	 * Get the upstream (tracking) refs for all local branches.
+	 * @param repo The path of the repository.
+	 * @returns A set of upstream ref short names (e.g. "origin/main").
+	 */
+	private getUpstreamRefs(repo: string): Promise<Set<string>> {
+		return this.spawnGit(['for-each-ref', '--format=%(upstream:short)', 'refs/heads/'], repo, (stdout) => {
+			const refs = new Set<string>();
+			const lines = stdout.split(EOL_REGEX);
+			for (let i = 0; i < lines.length; i++) {
+				if (lines[i] !== '') {
+					refs.add(lines[i]);
+				}
+			}
+			return refs;
 		});
 	}
 
@@ -1775,7 +1853,7 @@ export class DataSource extends Disposable {
 	/**
 	 * Build the common branch/remote/tag arguments for git log commands.
 	 */
-	private buildLogBranchArgs(branches: ReadonlyArray<string> | null, authors: ReadonlyArray<string> | null, includeTags: boolean, includeRemotes: boolean, includeCommitsMentionedByReflogs: boolean, onlyFollowFirstParent: boolean, remotes: ReadonlyArray<string>, hideRemotes: ReadonlyArray<string>, stashes: ReadonlyArray<GitStash>, simplifyByDecoration: boolean): string[] {
+	private buildLogBranchArgs(branches: ReadonlyArray<string> | null, authors: ReadonlyArray<string> | null, includeTags: boolean, includeRemotes: ShowRemoteBranchesMode, includeCommitsMentionedByReflogs: boolean, onlyFollowFirstParent: boolean, remotes: ReadonlyArray<string>, hideRemotes: ReadonlyArray<string>, stashes: ReadonlyArray<GitStash>, simplifyByDecoration: boolean, upstreamRefs?: Set<string>): string[] {
 		const args: string[] = [];
 		if (simplifyByDecoration) {
 			args.push('--simplify-by-decoration');
@@ -1798,13 +1876,17 @@ export class DataSource extends Disposable {
 			if (includeTags) args.push('--tags');
 			else if (simplifyByDecoration) args.push('--decorate-refs-exclude=refs/tags/');
 			if (includeCommitsMentionedByReflogs) args.push('--reflog');
-			if (includeRemotes) {
+			if (includeRemotes === ShowRemoteBranchesMode.All) {
 				if (hideRemotes.length === 0) {
 					args.push('--remotes');
 				} else {
 					remotes.filter((remote) => !hideRemotes.includes(remote)).forEach((remote) => {
 						args.push('--glob=refs/remotes/' + remote);
 					});
+				}
+			} else if (includeRemotes === ShowRemoteBranchesMode.UpstreamOnly && upstreamRefs !== undefined) {
+				for (const ref of upstreamRefs) {
+					args.push('refs/remotes/' + ref);
 				}
 			}
 			// Add the unique list of base hashes of stashes, so that commits only referenced by stashes are displayed
@@ -1816,7 +1898,7 @@ export class DataSource extends Disposable {
 		return args;
 	}
 
-	private getLog(repo: string, branches: ReadonlyArray<string> | null, authors: ReadonlyArray<string> | null, num: number, includeTags: boolean, includeRemotes: boolean, includeCommitsMentionedByReflogs: boolean, onlyFollowFirstParent: boolean, order: CommitOrdering, remotes: ReadonlyArray<string>, hideRemotes: ReadonlyArray<string>, stashes: ReadonlyArray<GitStash>, simplifyByDecoration: boolean, pathFilter: string | null, sinceDate?: number, beforeDate?: number, startCommit?: string) {
+	private getLog(repo: string, branches: ReadonlyArray<string> | null, authors: ReadonlyArray<string> | null, num: number, includeTags: boolean, includeRemotes: ShowRemoteBranchesMode, includeCommitsMentionedByReflogs: boolean, onlyFollowFirstParent: boolean, order: CommitOrdering, remotes: ReadonlyArray<string>, hideRemotes: ReadonlyArray<string>, stashes: ReadonlyArray<GitStash>, simplifyByDecoration: boolean, pathFilter: string | null, upstreamRefs?: Set<string>, sinceDate?: number, beforeDate?: number, startCommit?: string) {
 		const args = ['-c', 'log.showSignature=false', 'log', '--max-count=' + num, '--format=' + this.gitFormatLog, '--' + order + '-order'];
 		if (sinceDate !== undefined) {
 			args.push('--after=' + sinceDate);
@@ -1827,7 +1909,7 @@ export class DataSource extends Disposable {
 		if (startCommit) {
 			args.push(startCommit);
 		} else {
-			args.push(...this.buildLogBranchArgs(branches, authors, includeTags, includeRemotes, includeCommitsMentionedByReflogs, onlyFollowFirstParent, remotes, hideRemotes, stashes, simplifyByDecoration));
+			args.push(...this.buildLogBranchArgs(branches, authors, includeTags, includeRemotes, includeCommitsMentionedByReflogs, onlyFollowFirstParent, remotes, hideRemotes, stashes, simplifyByDecoration, upstreamRefs));
 		}
 		if (pathFilter !== null && pathFilter !== '') {
 			args.push('--full-history', '--simplify-merges', '--');
@@ -1852,9 +1934,9 @@ export class DataSource extends Disposable {
 	 * Get matching commit hashes for a path filter.
 	 * @returns Ordered matches (date DESC) and a Set for quick lookup.
 	 */
-	private getMatchingHashes(repo: string, branches: ReadonlyArray<string> | null, authors: ReadonlyArray<string> | null, num: number, includeTags: boolean, includeRemotes: boolean, includeCommitsMentionedByReflogs: boolean, onlyFollowFirstParent: boolean, order: CommitOrdering, remotes: ReadonlyArray<string>, hideRemotes: ReadonlyArray<string>, stashes: ReadonlyArray<GitStash>, simplifyByDecoration: boolean, pathFilter: string): Promise<{ matches: { hash: string, date: number }[], hashes: Set<string> }> {
+	private getMatchingHashes(repo: string, branches: ReadonlyArray<string> | null, authors: ReadonlyArray<string> | null, num: number, includeTags: boolean, includeRemotes: ShowRemoteBranchesMode, includeCommitsMentionedByReflogs: boolean, onlyFollowFirstParent: boolean, order: CommitOrdering, remotes: ReadonlyArray<string>, hideRemotes: ReadonlyArray<string>, stashes: ReadonlyArray<GitStash>, simplifyByDecoration: boolean, pathFilter: string, upstreamRefs?: Set<string>): Promise<{ matches: { hash: string, date: number }[], hashes: Set<string> }> {
 		const args = ['-c', 'log.showSignature=false', 'log', '--max-count=' + num, '--format=%H%x00%ct', '--' + order + '-order'];
-		args.push(...this.buildLogBranchArgs(branches, authors, includeTags, includeRemotes, includeCommitsMentionedByReflogs, onlyFollowFirstParent, remotes, hideRemotes, stashes, simplifyByDecoration));
+		args.push(...this.buildLogBranchArgs(branches, authors, includeTags, includeRemotes, includeCommitsMentionedByReflogs, onlyFollowFirstParent, remotes, hideRemotes, stashes, simplifyByDecoration, upstreamRefs));
 		args.push('--');
 		args.push(...this.parsePathFilter(pathFilter));
 
@@ -1899,6 +1981,30 @@ export class DataSource extends Disposable {
 		);
 	}
 
+	/**
+	 * Find the nearest ancestor of a given commit that exists in the commitLookup.
+	 * Used to annotate orphaned refs (whose commits are not in the filtered result) to their closest ancestor.
+	 * @param repo The path of the repository.
+	 * @param hash The commit hash to find an ancestor for.
+	 * @param commitLookup A lookup of commit hashes to their index in the commit list.
+	 * @returns The hash of the nearest ancestor in commitLookup, or null if none found.
+	 */
+	private findNearestAncestorInSet(repo: string, hash: string, commitLookup: { [hash: string]: number }): Promise<string | null> {
+		return this.spawnGit(
+			['rev-list', '--max-count=1000', hash],
+			repo,
+			(stdout) => {
+				const lines = stdout.split(EOL_REGEX);
+				for (let i = 0; i < lines.length; i++) {
+					if (lines[i] !== '' && typeof commitLookup[lines[i]] === 'number') {
+						return lines[i];
+					}
+				}
+				return null;
+			}
+		);
+	}
+
 
 	/**
 	 * Get the references in a repository.
@@ -1908,9 +2014,9 @@ export class DataSource extends Disposable {
 	 * @param hideRemotes An array of hidden remotes.
 	 * @returns The references data.
 	 */
-	private getRefs(repo: string, showRemoteBranches: boolean, showRemoteHeads: boolean, hideRemotes: ReadonlyArray<string>) {
+	private getRefs(repo: string, showRemoteBranches: ShowRemoteBranchesMode, showRemoteHeads: boolean, hideRemotes: ReadonlyArray<string>, upstreamRefs?: Set<string>) {
 		let args = ['show-ref'];
-		if (!showRemoteBranches) args.push('--heads', '--tags');
+		if (showRemoteBranches === ShowRemoteBranchesMode.None) args.push('--heads', '--tags');
 		args.push('-d', '--head');
 
 		const hideRemotePatterns = hideRemotes.map((remote) => 'refs/remotes/' + remote + '/');
@@ -1932,7 +2038,14 @@ export class DataSource extends Disposable {
 					refData.tags.push({ hash: hash, name: (annotated ? ref.substring(10, ref.length - 3) : ref.substring(10)), annotated: annotated });
 				} else if (ref.startsWith('refs/remotes/')) {
 					if (!hideRemotePatterns.some((pattern) => ref.startsWith(pattern)) && (showRemoteHeads || !ref.endsWith('/HEAD'))) {
-						refData.remotes.push({ hash: hash, name: ref.substring(13) });
+						const remoteName = ref.substring(13);
+						if (showRemoteBranches === ShowRemoteBranchesMode.UpstreamOnly) {
+							if (upstreamRefs !== undefined && upstreamRefs.has(remoteName)) {
+								refData.remotes.push({ hash: hash, name: remoteName });
+							}
+						} else {
+							refData.remotes.push({ hash: hash, name: remoteName });
+						}
 					}
 				} else if (ref === 'HEAD') {
 					refData.head = hash;

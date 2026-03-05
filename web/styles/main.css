@@ -1074,6 +1074,17 @@ label > input[type=checkbox]:checked ~ .customCheckbox:after{
 	transform:rotate(45deg);
 }
 
+label > input[type=checkbox]:indeterminate ~ .customCheckbox:after{
+	position:relative;
+	display:block;
+	left:3px;
+	top:6px;
+	width:9px;
+	height:0;
+	border:solid var(--vscode-editor-foreground);
+	border-width:0 0 2px 0;
+}
+
 #simplifyByDecorationControl.disabled{
 	opacity:0.4;
 	cursor:not-allowed;
