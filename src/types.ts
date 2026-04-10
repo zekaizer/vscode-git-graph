@@ -1155,17 +1155,54 @@ export const enum RebaseActionOn {
 	Branch = 'Branch',
 	Commit = 'Commit'
 }
+export const enum RebaseTodoAction {
+	Pick = 'pick',
+	Reword = 'reword',
+	Edit = 'edit',
+	Squash = 'squash',
+	Fixup = 'fixup',
+	Drop = 'drop'
+}
+export interface RebaseTodoItem {
+	readonly hash: string;
+	readonly subject: string;
+}
+export interface RebaseTodoEntry {
+	readonly hash: string;
+	readonly action: RebaseTodoAction;
+}
 export interface RequestRebase extends RepoRequest {
 	readonly command: 'rebase';
 	readonly obj: string;
 	readonly actionOn: RebaseActionOn;
 	readonly ignoreDate: boolean;
 	readonly interactive: boolean;
+	readonly signoff: boolean;
 }
 export interface ResponseRebase extends ResponseWithErrorInfo {
 	readonly command: 'rebase';
 	readonly actionOn: RebaseActionOn;
 	readonly interactive: boolean;
+}
+export interface RequestGetRebaseTodoList extends RepoRequest {
+	readonly command: 'getRebaseTodoList';
+	readonly obj: string;
+	readonly actionOn: RebaseActionOn;
+}
+export interface ResponseGetRebaseTodoList extends BaseMessage {
+	readonly command: 'getRebaseTodoList';
+	readonly items: ReadonlyArray<RebaseTodoItem> | null;
+	readonly error: ErrorInfo;
+}
+export interface RequestRebaseInteractive extends RepoRequest {
+	readonly command: 'rebaseInteractive';
+	readonly obj: string;
+	readonly actionOn: RebaseActionOn;
+	readonly entries: ReadonlyArray<RebaseTodoEntry>;
+	readonly signoff: boolean;
+}
+export interface ResponseRebaseInteractive extends ResponseWithErrorInfo {
+	readonly command: 'rebaseInteractive';
 }
 
 export interface ResponseRefresh extends BaseMessage {
@@ -1378,6 +1415,8 @@ export type RequestMessage =
 	| RequestPushStash
 	| RequestPushTag
 	| RequestRebase
+	| RequestGetRebaseTodoList
+	| RequestRebaseInteractive
 	| RequestRenameBranch
 	| RequestRescanForRepos
 	| RequestResetFileToRevision
@@ -1445,6 +1484,8 @@ export type ResponseMessage =
 	| ResponsePushStash
 	| ResponsePushTag
 	| ResponseRebase
+	| ResponseGetRebaseTodoList
+	| ResponseRebaseInteractive
 	| ResponseRefresh
 	| ResponseRenameBranch
 	| ResponseResetFileToRevision
